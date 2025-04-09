@@ -172,3 +172,11 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+/Civitai/UserImages
+/Civitai/.idea
+/CivitaiAndroid/Civitai/.idea
+/CivitaiAndroid/Civitai/Binaries
+/CivitaiAndroid/Civitai/Intermediate
+/CivitaiAndroid/Civitai/Saved
+CivitaiAndroid/Civitai/.vsconfig
+CivitaiAndroid/Civitai/.vs/Civitai/v17/.suo

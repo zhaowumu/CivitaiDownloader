@@ -180,7 +180,7 @@ class App:
                 "username": userName,
                 "nsfw": "X",
                 "limit":200,
-                "page": 15,
+                "page": 2,
                 "sort":"Newest"
             }
 
