@@ -17,10 +17,23 @@ class CIVITAI_API UCivitaiSubSystem : public UGameInstanceSubsystem
 
 public:
 
+	UPROPERTY()
+	FString CurrentUser = FString();
+	UPROPERTY()
+	int32 CurrentPage = 0;
+	UPROPERTY()
+	TMap<int32,FString> CurrentUserDataMap;
+
+	UFUNCTION(BlueprintCallable, Category = "Civitai")
+	void StartFetchJsonData(const FString& InUserName);
+
 	UFUNCTION(BlueprintCallable, Category = "Civitai")
 	void SendDataHttpRequest();
 
-	void HandleCivtaiDataResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
+	void HandleCivitaiDataResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
+	
+	UFUNCTION(BlueprintCallable, Category = "Civitai")
+	bool SaveJsonData();
 
 	UPROPERTY(BlueprintAssignable, Category = "Civitai")
 	FOnRequestCompleted OnRequestCompleted;
