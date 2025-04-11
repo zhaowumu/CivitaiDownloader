@@ -14,6 +14,7 @@ UAsyncTask_DownloadCivitai* UAsyncTask_DownloadCivitai::DownloadCivitai(FString 
                                                                         int32 InImageID)
 {
 	UAsyncTask_DownloadCivitai* BlueprintAsyncTask = NewObject<UAsyncTask_DownloadCivitai>();
+	UE_LOG(LogTemp, Log, TEXT("UAsyncTask_DownloadCivitai::DownloadCivitai"));
 	BlueprintAsyncTask->URL = InURL;
 	BlueprintAsyncTask->UserName = InUserName;
 	BlueprintAsyncTask->ImageID = InImageID;
@@ -29,16 +30,22 @@ void UAsyncTask_DownloadCivitai::Activate()
 	HttpRequest->SetURL(URL);
 	HttpRequest->SetVerb(TEXT("GET"));
 	HttpRequest->ProcessRequest();
+
+	UE_LOG(LogTemp, Log, TEXT("UAsyncTask_DownloadCivitai::Activate"));
 }
 
 void UAsyncTask_DownloadCivitai::HandleImageRequest(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse,
                                                     bool bSucceeded)
 {
-	RemoveFromRoot();
 
+	UE_LOG(LogTemp, Log, TEXT("HandleImageRequest"));
+	RemoveFromRoot();
+	UE_LOG(LogTemp, Log, TEXT("HandleImageRequest2"));
 	if (bSucceeded && HttpResponse.IsValid() && EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()) &&
 		HttpResponse->GetContentLength() > 0 && HttpResponse->GetContent().Num() > 0)
 	{
+
+		UE_LOG(LogTemp, Log, TEXT("HandleImageRequest3"));
 		/*IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(
 			FName("ImageWrapper"));
 		TSharedPtr<IImageWrapper> ImageWrappers[3] =
