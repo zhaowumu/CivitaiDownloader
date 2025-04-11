@@ -4,6 +4,7 @@
 #include "CivitaiSubSystem.h"
 
 #include "CivitaiFunctionLib.h"
+#include "Kismet/BlueprintPathsLibrary.h"
 #include "Serialization/JsonTypes.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
@@ -47,7 +48,7 @@ void UCivitaiSubSystem::StartFetchJsonData(const FString& InUserName)
 void UCivitaiSubSystem::SendDataHttpRequest()
 {
 	FString BaseUrl = FString::Printf(
-		TEXT("https://civitai.com/api/v1/images?username=%s&page=%d&limit=200&nsfw=X&period=AllTime&sort=Newest"),
+		TEXT("https://civitai.com/api/v1/images?username=%s&page=%d&limit=10&nsfw=X&period=AllTime&sort=Newest"),
 		*CurrentUser, CurrentPage);
 
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
@@ -182,6 +183,7 @@ void UCivitaiSubSystem::ShowUserLocalData(const FString& InUserName)
 		if (JsonObject->HasField(TEXT("images")))
 		{
 			const TArray<TSharedPtr<FJsonValue>> Items = JsonObject->GetArrayField(TEXT("images"));
+			UE_LOG(LogTemp, Log, TEXT("Josn有 %d 条本地数据"), Items.Num());
 			for (const TSharedPtr<FJsonValue>& ItemValue : Items)
 			{
 				TSharedPtr<FJsonObject> ItemObject = ItemValue->AsObject();
@@ -241,8 +243,8 @@ TMap<int32, FString> UCivitaiSubSystem::GetDownLoadImageData()
 
 	for (const auto& ImgData : CurrentUserDataMap)
 	{
-		FString FileNamejpg = FString::Printf(TEXT("%d.jpg"), ImgData.Key);
-		FString FilePath = FPaths::Combine(TargetFolder, FileNamejpg);
+		FString FilePath = FPaths::Combine(TargetFolder, ImgData.Key,
+		                                   UBlueprintPathsLibrary::GetExtension(ImgData.Value, true));
 
 		// 检查文件是否存在
 		if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*FilePath))
@@ -251,16 +253,7 @@ TMap<int32, FString> UCivitaiSubSystem::GetDownLoadImageData()
 			continue;
 		}
 
-		FString FileNameMp4 = FString::Printf(TEXT("%d.mp4"), ImgData.Key);
-		FString FilePathMp4 = FPaths::Combine(TargetFolder, FileNameMp4);
-
-		// 检查文件是否存在
-		if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*FileNameMp4))
-		{
-			UE_LOG(LogTemp, Warning, TEXT("文件已存在，跳过下载: %s"), *FilePathMp4);
-			continue;
-		}
-
+		UE_LOG(LogTemp, Warning, TEXT("文件已加入下载: %s"), *FilePath);
 		ResultMap.Add(ImgData.Key, ImgData.Value);
 	}
 
