@@ -108,3 +108,9 @@ void UCivitaiFunctionLib::OpenFolderBySystem(const FString& InFolderName)
 {
 	FPlatformProcess::ExploreFolder(*InFolderName);
 }
+
+void UCivitaiFunctionLib::OpenFileBySystem(const FString& InFile)
+{
+	// 使用系统默认应用程序打开文件
+	FPlatformProcess::LaunchURL(*InFile, nullptr, nullptr);
+}

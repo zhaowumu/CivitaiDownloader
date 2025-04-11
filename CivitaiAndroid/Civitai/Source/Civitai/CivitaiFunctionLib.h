@@ -40,5 +40,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "File")
 	static void OpenFolderBySystem(const FString& InFolderName);
+
+	UFUNCTION(BlueprintCallable, Category = "File")
+	static void OpenFileBySystem(const FString& InFile);
 	
 };
