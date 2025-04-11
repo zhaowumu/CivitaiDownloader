@@ -39,24 +39,25 @@ void UCivitaiSubSystem::StartFetchJsonData(const FString& InUserName)
 	if (!InUserName.IsEmpty())
 	{
 		CurrentUser = InUserName;
-		CurrentPage = 0;
 		CurrentUserDataMap.Empty();
-		SendDataHttpRequest();
+		CurrentPageUrl.Empty();
+
+		FString BaseUrl = FString::Printf(
+			TEXT("https://civitai.com/api/v1/images?username=%s&limit=100&nsfw=X&period=AllTime&sort=Newest"),
+			*CurrentUser);
+
+		SendDataHttpRequest(BaseUrl);
 	}
 }
 
-void UCivitaiSubSystem::SendDataHttpRequest()
+void UCivitaiSubSystem::SendDataHttpRequest(const FString& InUrl)
 {
-	FString BaseUrl = FString::Printf(
-		TEXT("https://civitai.com/api/v1/images?username=%s&page=%d&limit=10&nsfw=X&period=AllTime&sort=Newest"),
-		*CurrentUser, CurrentPage);
-
+	CurrentPageUrl = InUrl;
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
-	Request->SetURL(BaseUrl);
+	Request->SetURL(InUrl);
 	Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
 	Request->SetHeader("Authorization", "48a2ee64f676a61c94169c95da2f81fc");
 	Request->SetVerb("GET"); // 或 "POST"
-
 	// 绑定回调
 	Request->OnProcessRequestComplete().BindUObject(this, &UCivitaiSubSystem::HandleCivitaiDataResponse);
 	// 发送请求
@@ -79,9 +80,6 @@ void UCivitaiSubSystem::HandleCivitaiDataResponse(FHttpRequestPtr Request, FHttp
 		// 解析JSON数据
 		if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
 		{
-			// 清空旧数据
-			CurrentUserDataMap.Empty();
-
 			// 遍历items数组
 			const TArray<TSharedPtr<FJsonValue>> Items = JsonObject->GetArrayField(TEXT("items"));
 			for (const TSharedPtr<FJsonValue>& ItemValue : Items)
@@ -95,16 +93,40 @@ void UCivitaiSubSystem::HandleCivitaiDataResponse(FHttpRequestPtr Request, FHttp
 				// 存入映射表
 				CurrentUserDataMap.Add(ItemId, ItemUrl);
 			}
+			TSharedPtr<FJsonObject> MetaDataJsonObject = JsonObject->GetObjectField(TEXT("metadata"));
 
-			UE_LOG(LogTemp, Log, TEXT("成功解析 %d 条数据"), Items.Num());
+			// 还有下一页
+			if (MetaDataJsonObject.IsValid())
+			{
+				// 提取关键字段
+				FString nextCursor = MetaDataJsonObject->GetStringField(TEXT("nextCursor"));
+				FString nextUrl = MetaDataJsonObject->GetStringField(TEXT("nextPage"));
+
+				if (!nextUrl.IsEmpty())
+				{
+					SendDataHttpRequest(nextUrl);
+				}
+				else
+				{
+					SyncDataOverDelegate.Broadcast(false, CurrentUserDataMap.Num());
+					UE_LOG(LogTemp, Error, TEXT("错误下一页"));
+				}
+			}
+			else
+			{
+				SyncDataOverDelegate.Broadcast(true, CurrentUserDataMap.Num());
+				UE_LOG(LogTemp, Log, TEXT("成功解析 %d 条数据"), CurrentUserDataMap.Num());
+			}
 		}
 		else
 		{
+			SyncDataOverDelegate.Broadcast(false, CurrentUserDataMap.Num());
 			UE_LOG(LogTemp, Error, TEXT("JSON解析失败"));
 		}
 	}
 	else
 	{
+		SyncDataOverDelegate.Broadcast(false, CurrentUserDataMap.Num());
 		// 请求失败，处理错误信息
 		UE_LOG(LogTemp, Error, TEXT("Response: Error"));
 	}
@@ -141,6 +163,8 @@ bool UCivitaiSubSystem::SaveJsonData()
 		return false;
 	}
 
+	CurrentJsonCount = CurrentUserDataMap.Num();
+
 	return true;
 }
 
@@ -152,7 +176,7 @@ void UCivitaiSubSystem::ShowUserLocalData(const FString& InUserName)
 	}
 
 	CurrentUser = InUserName;
-	CurrentPage = 0;
+	CurrentJsonCount = 0;
 	CurrentUserDataMap.Empty();
 
 	// 构建本地JSON文件路径
@@ -195,6 +219,8 @@ void UCivitaiSubSystem::ShowUserLocalData(const FString& InUserName)
 				// 存入映射表
 				CurrentUserDataMap.Add(ItemId, ItemUrl);
 			}
+
+			CurrentJsonCount = CurrentUserDataMap.Num();
 
 			UE_LOG(LogTemp, Log, TEXT("成功加载 %d 条本地数据"), Items.Num());
 		}
@@ -243,8 +269,10 @@ TMap<int32, FString> UCivitaiSubSystem::GetDownLoadImageData()
 
 	for (const auto& ImgData : CurrentUserDataMap)
 	{
-		FString FilePath = FPaths::Combine(TargetFolder, ImgData.Key,
-		                                   UBlueprintPathsLibrary::GetExtension(ImgData.Value, true));
+		FString ext = FString::FromInt(ImgData.Key) + UBlueprintPathsLibrary::GetExtension(ImgData.Value, true);
+
+
+		FString FilePath = FPaths::Combine(TargetFolder, ext);
 
 		// 检查文件是否存在
 		if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*FilePath))
