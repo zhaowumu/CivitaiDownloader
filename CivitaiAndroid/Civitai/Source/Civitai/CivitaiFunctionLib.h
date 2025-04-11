@@ -31,5 +31,11 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "File")
 	static TArray<FString> GetAllSubFolders(const FString& InFolderPath);
-    
+
+	UFUNCTION(BlueprintCallable, Category = "File")
+	static TArray<FString> GetAllSubFiles(const FString& InFolderPath);
+
+	UFUNCTION(BlueprintCallable, Category = "File")
+	static UTexture2D* GetVideoThumbnail();
+	
 };

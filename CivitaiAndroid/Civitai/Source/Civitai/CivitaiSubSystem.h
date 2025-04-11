@@ -6,7 +6,7 @@
 #include "Runtime/Online/HTTP/Public/Http.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "CivitaiSubSystem.generated.h"
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRequestCompleted, FString, FilePath, bool, bSuccess);
+
 /**
  * 
  */
@@ -17,12 +17,21 @@ class CIVITAI_API UCivitaiSubSystem : public UGameInstanceSubsystem
 
 public:
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	FString CurrentUser = FString();
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	int32 CurrentPage = 0;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	TMap<int32,FString> CurrentUserDataMap;
+
+
+	UFUNCTION(BlueprintCallable, Category = "Civitai")
+	void CreateUserFolder(const FString& InUserName);
+
+	UFUNCTION(BlueprintPure, Category = "Civitai")
+	void GetUserDataList(TArray<FString>& InUserDataList);
+
+
 
 	UFUNCTION(BlueprintCallable, Category = "Civitai")
 	void StartFetchJsonData(const FString& InUserName);
@@ -35,6 +44,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Civitai")
 	bool SaveJsonData();
 
-	UPROPERTY(BlueprintAssignable, Category = "Civitai")
-	FOnRequestCompleted OnRequestCompleted;
+	UFUNCTION(BlueprintCallable, Category = "Civitai")
+	void ShowUserLocalData(const FString& InUserName);
+
+	UFUNCTION(BlueprintPure, Category = "Civitai")
+	FString GetCivitaiUserDir();
+
+	UFUNCTION(BlueprintCallable, Category = "Civitai")
+	TMap<int32,FString> GetDownLoadImageData();
+	
 };

@@ -3,6 +3,8 @@
 
 #include "CivitaiFunctionLib.h"
 
+#include "ImageUtils.h"
+
 bool UCivitaiFunctionLib::CreateFolder(const FString& InFolderName)
 {
 	// 获取基础路径
@@ -53,7 +55,7 @@ TArray<FString> UCivitaiFunctionLib::GetAllSubFolders(const FString& InFolderPat
 		UE_LOG(LogTemp, Warning, TEXT("Directory does not exist: %s"), *InFolderPath);
 		return SubFolderNames;
 	}
-	
+
 	// 定义 Lambda 变量（自动推导类型）
 	auto DirectoryVisitor = [&SubFolderNames](const TCHAR* Path, bool bIsDirectory) -> bool
 	{
@@ -71,11 +73,33 @@ TArray<FString> UCivitaiFunctionLib::GetAllSubFolders(const FString& InFolderPat
 		}
 		return true; // 继续遍历
 	};
-	
+
 	// 转换为 const TCHAR*
 	const TCHAR* PathPtr = *InFolderPath;
 	// 遍历目录内容（只包含子目录）
 	PlatformFile.IterateDirectory(PathPtr, DirectoryVisitor);
 
 	return SubFolderNames;
+}
+
+TArray<FString> UCivitaiFunctionLib::GetAllSubFiles(const FString& InFolderPath)
+{
+	TArray<FString> SubFileNames;
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+
+	// 检查基础路径是否存在
+	if (!PlatformFile.DirectoryExists(*InFolderPath))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Directory does not exist: %s"), *InFolderPath);
+		return SubFileNames;
+	}
+
+	PlatformFile.FindFiles(SubFileNames, *InFolderPath, TEXT(""));
+
+	return SubFileNames;
+}
+
+UTexture2D* UCivitaiFunctionLib::GetVideoThumbnail()
+{
+	return nullptr;
 }
