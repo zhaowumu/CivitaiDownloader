@@ -37,5 +37,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "File")
 	static UTexture2D* GetVideoThumbnail();
+
+	UFUNCTION(BlueprintCallable, Category = "File")
+	static void OpenFolderBySystem(const FString& InFolderName);
 	
 };

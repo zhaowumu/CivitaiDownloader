@@ -103,3 +103,8 @@ UTexture2D* UCivitaiFunctionLib::GetVideoThumbnail()
 {
 	return nullptr;
 }
+
+void UCivitaiFunctionLib::OpenFolderBySystem(const FString& InFolderName)
+{
+	FPlatformProcess::ExploreFolder(*InFolderName);
+}
