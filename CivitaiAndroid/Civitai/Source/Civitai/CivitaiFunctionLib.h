@@ -43,5 +43,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "File")
 	static void OpenFileBySystem(const FString& InFile);
+
+	UFUNCTION(BlueprintCallable, Category = "File")
+	static void ShowToast(const FString& msg);
 	
 };

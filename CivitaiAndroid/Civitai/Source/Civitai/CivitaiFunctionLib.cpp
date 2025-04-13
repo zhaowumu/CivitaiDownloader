@@ -2,8 +2,12 @@
 
 
 #include "CivitaiFunctionLib.h"
-
 #include "ImageUtils.h"
+
+#if PLATFORM_ANDROID
+#include "Android/AndroidApplication.h"
+#include "Android/AndroidJNI.h"
+#endif
 
 bool UCivitaiFunctionLib::CreateFolder(const FString& InFolderName)
 {
@@ -113,4 +117,16 @@ void UCivitaiFunctionLib::OpenFileBySystem(const FString& InFile)
 {
 	// 使用系统默认应用程序打开文件
 	FPlatformProcess::LaunchURL(*InFile, nullptr, nullptr);
+}
+
+void UCivitaiFunctionLib::ShowToast(const FString& msg)
+{
+#if PLATFORM_ANDROID
+	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+	{
+
+	}
+
+#endif
+	
 }
