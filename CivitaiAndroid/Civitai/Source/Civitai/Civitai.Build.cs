@@ -13,7 +13,7 @@ public class Civitai : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
-			"HTTP", "Json", "JsonUtilities", "UMG" , "Slate", "SlateCore",
+			"HTTP", "Json", "JsonUtilities", "UMG" , "Slate", "SlateCore", "AndroidUtilityPack",
 		});
 
 		if (Target.Platform == UnrealTargetPlatform.Android)

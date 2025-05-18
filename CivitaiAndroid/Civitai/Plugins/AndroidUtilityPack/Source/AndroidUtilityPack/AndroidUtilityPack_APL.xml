@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--Copyright Porret Gaming 2024, All Rights Reserved-->
+<!--Android Utility Pack Additions-->
+<root xmlns:android="http://schemas.android.com/apk/res/android"
+      xmlns:tools="http://schemas.android.com/tools">
+	<!--
+        Android and Gradle updates
+        This is the standard Gradle/Android configuration updates
+    -->
+
+    <!-- Initialisation -->
+	<init>
+		<!-- Fetch Configuration from Project Settings -->
+		<setBoolFromProperty 	result="bEnableAndroidAPI33Fixes" 	    ini="Game" section="/Script/AndroidUtilityPackEditor.AndroidUtilityPackSettings" property="bEnableAndroidAPI33Fixes"    default="false"/>
+		<setBoolFromProperty 	result="bEnableAndroidAPI34Fixes"       ini="Game" section="/Script/AndroidUtilityPackEditor.AndroidUtilityPackSettings" property="bEnableAndroidAPI34Fixes"    default="false"/>
+        <setBoolFromProperty 	result="bUpgradeGradle"                 ini="Game" section="/Script/AndroidUtilityPackEditor.AndroidUtilityPackSettings" property="bUpgradeGradle"              default="false"/>
+        <setBoolFromProperty 	result="bUpdateAndroidXFragement"       ini="Game" section="/Script/AndroidUtilityPackEditor.AndroidUtilityPackSettings" property="bUpdateAndroidXFragement"    default="false"/>
+
+        <setBoolFromProperty 	result="bOverrideInternetCheck"         ini="Game" section="/Script/AndroidUtilityPackEditor.AndroidUtilityPackSettings" property="bOverrideInternetCheck"   default="false"/>
+        <setIntFromProperty 	result="ConnectionTimeout"              ini="Game" section="/Script/AndroidUtilityPackEditor.AndroidUtilityPackSettings" property="ConnectionTimeout"        default="1500"/>
+        <setStringFromProperty 	result="InternetCheckURL"               ini="Game" section="/Script/AndroidUtilityPackEditor.AndroidUtilityPackSettings" property="InternetCheckURL"         default="https://clients3.google.com/generate_204"/>
+        
+
+		<!-- Detecting Old Gradle Versions -->
+        <setBoolStartsWith result="IsUnreal4"   source="$S(EngineVersion)" find="4"/>
+        <setBoolStartsWith result="IsUnreal5_0" source="$S(EngineVersion)" find="5.0"/>
+        <setBoolStartsWith result="IsUnreal5_1" source="$S(EngineVersion)" find="5.1"/>
+        <setBoolStartsWith result="IsUnreal5_2" source="$S(EngineVersion)" find="5.2"/>
+        <setBoolStartsWith result="IsUnreal5_3" source="$S(EngineVersion)" find="5.3"/>
+        <setBoolStartsWith result="IsUnreal5_4" source="$S(EngineVersion)" find="5.4"/>
+
+        <setBoolOr result="UE4_UE50"             arg1="$B(IsUnreal4)"            arg2="$B(IsUnreal5_0)"/>
+        <setBoolOr result="UE51_UE52"            arg1="$B(IsUnreal5_1)"          arg2="$B(IsUnreal5_2)"/>
+        <setBoolOr result="OldGradleVersion"     arg1="$B(UE4_UE50)"             arg2="$B(UE51_UE52)"/>
+        <setBoolAnd result="bUpgradingGradle"    arg1="$B(OldGradleVersion)"     arg2="$B(bUpgradeGradle)"/>
+
+        <setBoolAnd result="UpdateForAPI33"      arg1="$B(UE4_UE50)"                     arg2="$B(bEnableAndroidAPI33Fixes)"/>
+        <setBoolAnd result="UpdateForAPI34"      arg1="$B(bEnableAndroidAPI34Fixes)"     arg2="$B(bEnableAndroidAPI34Fixes)"/>
+        
+        <!-- Log Configuration Settings for Debugging Purposes -->
+        <log text="&lt;========================================================================================&gt;"/>
+		<log text="&lt;=======    ========&gt;                   (Android Utility Pack)"/>
+		<log text="&lt;===   ╔═╗╔═╗   ====&gt; 'bEnableAndroidAPI33Fixes'     = '$B(bEnableAndroidAPI33Fixes)'"/>
+		<log text="&lt;==    ╠═╝║ ╦    ===&gt; 'bEnableAndroidAPI34Fixes'     = '$B(bEnableAndroidAPI34Fixes)'"/>
+        <log text="&lt;===   ╩  ╚═╝   ====&gt; 'bOverrideInternetCheck'       = '$B(bOverrideInternetCheck)'"/>
+        <log text="&lt;=======    ========&gt; 'bUpgradingGradle'             = '$B(bUpgradingGradle)'"/>
+        <log text="&lt;===================&gt; 'bUpdateAndroidXFragement'     = '$B(bUpdateAndroidXFragement)'"/>
+		<log text="&lt;========================================================================================&gt;"/>
+	</init>
+
+	<!-- Remove Old Play Services Libraries -->
+	<AARImports>
+        
+    </AARImports>
+
+	<!-- Update AndroidManifest.xml -->
+	<androidManifestUpdates>
+		<!-- Add Required Permissions -->
+        <addPermission android:name="android.permission.INTERNET"/>
+        <addPermission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+	</androidManifestUpdates>
+
+	<!-- Copy Custom Java Class -->
+    <gradleCopies>
+        <copyDir
+            src="$S(PluginDir)/Android/"
+            dst="$S(BuildDir)/gradle/app/src/main/java/com/porretgaming/androidutilitypack/" />
+        <if condition="bUpgradingGradle">
+            <true>
+                <copyFile
+                    src="$S(PluginDir)/Gradle/gradle-wrapper.properties"
+                    dst="$S(BuildDir)/gradle/gradle/wrapper/gradle-wrapper.properties" />
+            </true>
+        </if>
+	</gradleCopies>
+
+    <!-- Gradle additions -->
+    <buildGradleAdditions>
+        <if condition="bUpdateAndroidXFragement">
+            <true>
+                <insert>
+            dependencies {
+                    constraints.implementation 'androidx.fragment:fragment:1.3.6'
+            }
+                </insert>
+            </true>
+        </if>
+        <insert>
+            android
+            {
+                compileOptions
+                {
+                    targetCompatibility JavaVersion.VERSION_1_8
+                    sourceCompatibility JavaVersion.VERSION_1_8
+                }
+            }
+        </insert>
+	</buildGradleAdditions>
+
+	<!-- Update use of old Library in Existing Engine Source Code -->
+	<baseBuildGradleAdditions>
+        <if condition="UpdateForAPI33">
+            <true>
+                <insert>
+                    allprojects
+                    {
+                        def mappings =
+                        [
+                            'webView.getSettings().setAppCacheMaxSize( 10 * 1024 * 1024 );':	                                                                '// (Android Utility Pack - API 33) removing setAppCacheMaxSize',
+                            'webView.getSettings().setAppCachePath(GameActivity._activity.getApplicationContext().getCacheDir().getAbsolutePath() );':          '// (Android Utility Pack - API 33) removing setAppCachePath',
+                            'webView.getSettings().setAppCacheEnabled( true );':                                                                                '// (Android Utility Pack - API 33) removing setAppCacheEnabled'
+                        ]
+
+                        beforeEvaluate { project ->
+                            println "&lt;=== | (Android Utility Pack - API 33) File Updates: "
+                            project.rootProject.projectDir.traverse(type: groovy.io.FileType.FILES, nameFilter: ~/.*\.java$/) { f ->
+                                mappings.each { entry ->
+                                    if (f.getText('UTF-8').contains(entry.key)) {
+                                        println "&lt;=== | ${entry.value} in file ${f}"
+                                        ant.replace(file: f, token: entry.key, value: entry.value)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                </insert>
+            </true>
+        </if>
+
+        <if condition="UpdateForAPI34">
+            <true>
+                <insert>
+                    allprojects
+                    {
+                        def mappings =
+                        [
+                            'registerReceiver(consoleCmdReceiver, new IntentFilter(Intent.ACTION_RUN));':   'if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { registerReceiver(consoleCmdReceiver, new IntentFilter(Intent.ACTION_RUN), RECEIVER_EXPORTED); } else { registerReceiver(consoleCmdReceiver, new IntentFilter(Intent.ACTION_RUN)); }',
+                            'activity.registerReceiver(receiver, filter);':                                 'if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { activity.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED); } else { activity.registerReceiver(receiver, filter); }',
+                            'registerReceiver(mConnReceiver, intentFilter);':                               'if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { registerReceiver(mConnReceiver, intentFilter, RECEIVER_EXPORTED); } else { registerReceiver(mConnReceiver, intentFilter); }'
+                        ]
+
+                        beforeEvaluate { project ->
+                            println "&lt;=== | (Android Utility Pack - API 34) File Updates: "
+                            project.rootProject.projectDir.traverse(type: groovy.io.FileType.FILES, nameFilter: ~/.*\.java$/) { f ->
+                                mappings.each { entry ->
+                                    if (f.getText('UTF-8').contains(entry.key)) {
+                                        println "&lt;=== | (Android Utility Pack - API 34) Updating 'registerReceiver' in file ${f}"
+                                        ant.replace(file: f, token: entry.key, value: entry.value)
+                                        ant.replace(file: f, token: "import android.util.Log;", value: "import android.util.Log; import android.os.Build;")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                </insert>
+            </true>
+        </if>
+	</baseBuildGradleAdditions>
+
+    <!-- Upgrade Gradle Version -->
+    <gradleProperties>
+        <if condition="bUpgradingGradle">
+            <true>
+                <insertValue value="ANDROID_TOOLS_BUILD_GRADLE_VERSION=com.android.tools.build:gradle:7.4.2"/><insertNewline/>
+            </true>
+        </if>
+        <insert>
+            android.useAndroidX=true
+            android.enableJetifier=true
+            android.suppressUnsupportedCompileSdk=34
+        </insert>
+    </gradleProperties>
+
+	<!-- Import Additions -->
+	<gameActivityImportAdditions>
+        <insert>
+            import com.porretgaming.androidutilitypack.AndroidUtilities;
+            import com.porretgaming.androidutilitypack.AndroidBatteryInfo;
+            import com.porretgaming.androidutilitypack.InternetCheckResult;
+        </insert>
+	</gameActivityImportAdditions>
+
+	<!-- OnCreate Additions -->
+    <gameActivityOnCreateAdditions>
+        <if condition="bOverrideInternetCheck">
+            <true>
+                <insertValue value="String InternetCheckURL = &quot;$S(InternetCheckURL)&quot;;"/><insertNewline/>
+                <insertValue value="int ConnectionTimeout = $I(ConnectionTimeout);" /><insertNewline/>
+            </true>
+            <false>
+                <insert>
+                    String InternetCheckURL = "https://clients3.google.com/generate_204";
+                    int ConnectionTimeout = 1500;
+                </insert>
+            </false>
+        </if>
+        <insert>
+            Utilities = new AndroidUtilities(this, InternetCheckURL, ConnectionTimeout);
+        </insert>
+    </gameActivityOnCreateAdditions>
+
+    <!-- Class Aditions -->
+	<gameActivityClassAdditions>
+        <insert>
+            private AndroidUtilities Utilities;
+
+            public void AndroidThunkJava_PG_ADBLog(int LogLevel, String Tag, String Message)
+            {
+                Utilities.ADBLog(LogLevel, Tag, Message);
+            }
+
+            public void AndroidThunkJava_PG_SetupLifecycleEventCallback()
+            {
+                Utilities.SetupLifeCycleEventCallback();
+            }
+
+            public int AndroidThunkJava_PG_GetAndroidSDKVersion()
+            {
+                return Utilities.GetAndroidSDKVersion();
+            }
+
+            public AndroidBatteryInfo AndroidThunkJava_PG_GetCurrentBatteryStatus()
+            {
+                return Utilities.GetCurrentBatteryStatus();
+            }
+
+            public InternetCheckResult AndroidThunkJava_PG_IsConnectedToInternet()
+            {
+                return Utilities.IsConnectedToInternet();
+            }
+
+            public void AndroidThunkJava_PG_SetupNetworkCallbacks()
+            {
+                Utilities.SetupNetworkCallbacks();
+            }
+
+        </insert>
+	</gameActivityClassAdditions>
+
+    <!-- Lifecycle Events -->
+    <gameActivityOnCreateFinalAdditions>
+        <insert>
+            Utilities.OnLifecycleEvent(0);
+        </insert>
+    </gameActivityOnCreateFinalAdditions>
+
+    <gameActivityOnStartAdditions>
+        <insert>
+            Utilities.OnLifecycleEvent(1);
+        </insert>
+    </gameActivityOnStartAdditions>
+
+    <gameActivityOnResumeAdditions>
+        <insert>
+            Runnable networkSetupRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    Utilities.BuildUpNetworkCallbacks();
+                    Utilities.CheckInternetChangedOnResume();
+                }
+            };
+            new Thread(networkSetupRunnable).start();
+
+            Utilities.OnLifecycleEvent(2);
+        </insert>
+    </gameActivityOnResumeAdditions>
+
+    <gameActivityOnPauseAdditions>
+        <insert>
+            Utilities.OnLifecycleEvent(3);
+        </insert>
+    </gameActivityOnPauseAdditions>
+
+    <gameActivityOnStopAdditions>
+        <insert>
+            Utilities.TearDownNetworkCallbacks();
+            Utilities.OnLifecycleEvent(4);
+        </insert>
+    </gameActivityOnStopAdditions>
+
+    <gameActivityOnRestartAdditions>
+        <insert>
+            Utilities.OnLifecycleEvent(5);
+        </insert>
+    </gameActivityOnRestartAdditions>
+
+    <proguardAdditions>
+        <insert>
+            -dontwarn com.porretgaming.**
+            -keep class com.porretgaming.** { *; }
+        </insert>
+    </proguardAdditions>
+
+	<!-- On Activity Result Additions -->
+    <gameActivityOnActivityResultAdditions>
+    </gameActivityOnActivityResultAdditions>
+
+</root>

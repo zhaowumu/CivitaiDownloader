@@ -10,6 +10,32 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FSyncDataOverDelegate, bool, result, int32, count);
 
+USTRUCT(Blueprintable)
+struct FCivitaiDataInfo
+{
+	GENERATED_BODY()
+
+public:
+	FCivitaiDataInfo(){};
+
+	// 只保留带参数的构造函数
+	FCivitaiDataInfo(int32 InID, const FString& InUrl, const FString& InType, const FString& InNsfwLevel)
+		: ID(InID), Url(InUrl), Type(InType), NsfwLevel(InNsfwLevel)
+	{};
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 ID = 0;
+	UPROPERTY(BlueprintReadOnly)
+	FString Url = FString();
+
+	UPROPERTY(BlueprintReadOnly)
+	FString Type = FString();
+	
+	UPROPERTY(BlueprintReadOnly)
+	FString NsfwLevel = FString();
+	
+};
+
 /**
  * 
  */
@@ -22,7 +48,7 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	FString CurrentUser = FString();
 	UPROPERTY(BlueprintReadOnly)
-	TMap<int32, FString> CurrentUserDataMap;
+	TMap<int32, FCivitaiDataInfo> CurrentUserDataMap;
 	UPROPERTY(BlueprintReadOnly)
 	FString CurrentPageUrl = FString();
 	UPROPERTY(BlueprintReadOnly)
@@ -56,6 +82,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Civitai")
 	FString GetCivitaiUserDir();
 
+	UFUNCTION(BlueprintPure, Category = "Civitai")
+	FString GetCivitaiExternalStorageDir();	
+
 	UFUNCTION(BlueprintCallable, Category = "Civitai")
 	TMap<int32, FString> GetDownLoadImageData();
+
 };

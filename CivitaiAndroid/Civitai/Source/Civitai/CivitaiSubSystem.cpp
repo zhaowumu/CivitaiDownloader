@@ -14,7 +14,7 @@ void UCivitaiSubSystem::CreateUserFolder(const FString& InUserName)
 {
 	if (!InUserName.IsEmpty())
 	{
-		FString FolderPath = FPaths::ProjectSavedDir() / TEXT("ImageData") / InUserName;
+		FString FolderPath = UCivitaiFunctionLib::GetProjectSavedFolder() / TEXT("CivitaiImageData") / InUserName;
 		if (!FPaths::DirectoryExists(FolderPath))
 		{
 			if (FPlatformFileManager::Get().GetPlatformFile().CreateDirectoryTree(*FolderPath))
@@ -31,22 +31,37 @@ void UCivitaiSubSystem::CreateUserFolder(const FString& InUserName)
 
 void UCivitaiSubSystem::GetUserDataList(TArray<FString>& InUserDataList)
 {
-	InUserDataList = UCivitaiFunctionLib::GetAllSubFolders(FPaths::ProjectSavedDir() / TEXT("ImageData"));
+	InUserDataList = UCivitaiFunctionLib::GetAllSubFolders(UCivitaiFunctionLib::GetProjectSavedFolder() / TEXT("CivitaiImageData"));
 }
 
 void UCivitaiSubSystem::StartFetchJsonData(const FString& InUserName)
 {
 	if (!InUserName.IsEmpty())
 	{
-		CurrentUser = InUserName;
-		CurrentUserDataMap.Empty();
-		CurrentPageUrl.Empty();
+		// 如果是数字就代表是日期
+		if (InUserName.IsNumeric())
+		{
+			/*CurrentUser = InUserName;
+			CurrentUserDataMap.Empty();
+			CurrentPageUrl.Empty();
 
-		FString BaseUrl = FString::Printf(
-			TEXT("https://civitai.com/api/v1/images?username=%s&limit=100&nsfw=X&period=AllTime&sort=Newest"),
-			*CurrentUser);
+			FString BaseUrl = FString::Printf(
+				TEXT("https://civitai.com/api/v1/images?limit=100&nsfw=X&period=Day&sort=Newest"));
 
-		SendDataHttpRequest(BaseUrl);
+			SendDataHttpRequest(BaseUrl);*/
+		}
+		else
+		{
+			CurrentUser = InUserName;
+			CurrentUserDataMap.Empty();
+			CurrentPageUrl.Empty();
+
+			FString BaseUrl = FString::Printf(
+				TEXT("https://civitai.com/api/v1/images?username=%s&limit=100&nsfw=X&period=AllTime&sort=Newest"),
+				*CurrentUser);
+
+			SendDataHttpRequest(BaseUrl);
+		}
 	}
 }
 
@@ -89,9 +104,11 @@ void UCivitaiSubSystem::HandleCivitaiDataResponse(FHttpRequestPtr Request, FHttp
 				// 提取关键字段
 				int32 ItemId = ItemObject->GetIntegerField(TEXT("id"));
 				FString ItemUrl = ItemObject->GetStringField(TEXT("url"));
+				FString ItemType = ItemObject->GetStringField(TEXT("type"));
+				FString ItemNsfwLevel = ItemObject->GetStringField(TEXT("nsfwLevel"));
 
 				// 存入映射表
-				CurrentUserDataMap.Add(ItemId, ItemUrl);
+				CurrentUserDataMap.Add(ItemId, FCivitaiDataInfo(ItemId, ItemUrl, ItemType, ItemNsfwLevel));
 			}
 			TSharedPtr<FJsonObject> MetaDataJsonObject = JsonObject->GetObjectField(TEXT("metadata"));
 
@@ -143,7 +160,9 @@ bool UCivitaiSubSystem::SaveJsonData()
 		// 创建第一个对象
 		TSharedPtr<FJsonObject> tmpJsonObj = MakeShareable(new FJsonObject());
 		tmpJsonObj->SetNumberField(TEXT("id"), ImgData.Key);
-		tmpJsonObj->SetStringField(TEXT("url"), ImgData.Value);
+		tmpJsonObj->SetStringField(TEXT("url"), ImgData.Value.Url);
+		tmpJsonObj->SetStringField(TEXT("type"), ImgData.Value.Type);
+		tmpJsonObj->SetStringField(TEXT("nsfwLevel"), ImgData.Value.NsfwLevel);
 		JsonArray.Add(MakeShareable(new FJsonValueObject(tmpJsonObj)));
 	}
 
@@ -156,7 +175,7 @@ bool UCivitaiSubSystem::SaveJsonData()
 
 
 	// 文件保存增强
-	FString FilePath = FPaths::ProjectSavedDir() / TEXT("ImageData") / CurrentUser / TEXT("data.json");
+	FString FilePath = UCivitaiFunctionLib::GetProjectSavedFolder() / TEXT("CivitaiImageData") / CurrentUser / TEXT("data.json");
 	if (!FFileHelper::SaveStringToFile(OutputString, *FilePath))
 	{
 		UE_LOG(LogTemp, Error, TEXT("文件保存失败: %s"), *FilePath);
@@ -180,7 +199,7 @@ void UCivitaiSubSystem::ShowUserLocalData(const FString& InUserName)
 	CurrentUserDataMap.Empty();
 
 	// 构建本地JSON文件路径
-	FString FilePath = FPaths::ProjectSavedDir() / TEXT("ImageData") / CurrentUser / TEXT("data.json");
+	FString FilePath = UCivitaiFunctionLib::GetProjectSavedFolder() / TEXT("CivitaiImageData") / CurrentUser / TEXT("data.json");
 
 	// 检查文件是否存在
 	if (!FPaths::FileExists(FilePath))
@@ -215,9 +234,11 @@ void UCivitaiSubSystem::ShowUserLocalData(const FString& InUserName)
 				// 提取关键字段
 				int32 ItemId = ItemObject->GetIntegerField(TEXT("id"));
 				FString ItemUrl = ItemObject->GetStringField(TEXT("url"));
+				FString ItemType = ItemObject->GetStringField(TEXT("type"));
+				FString ItemNsfwLevel = ItemObject->GetStringField(TEXT("nsfwLevel"));
 
 				// 存入映射表
-				CurrentUserDataMap.Add(ItemId, ItemUrl);
+				CurrentUserDataMap.Add(ItemId, FCivitaiDataInfo(ItemId, ItemUrl, ItemType, ItemNsfwLevel));
 			}
 
 			CurrentJsonCount = CurrentUserDataMap.Num();
@@ -237,7 +258,17 @@ void UCivitaiSubSystem::ShowUserLocalData(const FString& InUserName)
 
 FString UCivitaiSubSystem::GetCivitaiUserDir()
 {
-	return FPaths::ProjectSavedDir() / TEXT("ImageData") / CurrentUser;
+	return UCivitaiFunctionLib::GetProjectSavedFolder() / TEXT("CivitaiImageData") / CurrentUser;
+}
+
+FString UCivitaiSubSystem::GetCivitaiExternalStorageDir()
+{
+	FString ExternalPath = FPlatformMisc::GetEnvironmentVariable(TEXT("EXTERNAL_STORAGE"));
+
+
+	FString FilePath = FPaths::Combine(ExternalPath, TEXT("MyGame/Screenshots/Image.jpg"));
+
+	return FilePath;
 }
 
 TMap<int32, FString> UCivitaiSubSystem::GetDownLoadImageData()
@@ -250,7 +281,7 @@ TMap<int32, FString> UCivitaiSubSystem::GetDownLoadImageData()
 	}
 
 	// 构建目标文件夹路径
-	FString TargetFolder = FPaths::ProjectSavedDir() / TEXT("ImageData") / CurrentUser;
+	FString TargetFolder = UCivitaiFunctionLib::GetProjectSavedFolder() / TEXT("CivitaiImageData") / CurrentUser;
 
 	// 确保目标文件夹存在
 	if (!FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*TargetFolder))
@@ -269,7 +300,7 @@ TMap<int32, FString> UCivitaiSubSystem::GetDownLoadImageData()
 
 	for (const auto& ImgData : CurrentUserDataMap)
 	{
-		FString ext = FString::FromInt(ImgData.Key) + UBlueprintPathsLibrary::GetExtension(ImgData.Value, true);
+		FString ext = FString::FromInt(ImgData.Key) + UBlueprintPathsLibrary::GetExtension(ImgData.Value.Url, true);
 
 
 		FString FilePath = FPaths::Combine(TargetFolder, ext);
@@ -282,7 +313,7 @@ TMap<int32, FString> UCivitaiSubSystem::GetDownLoadImageData()
 		}
 
 		UE_LOG(LogTemp, Warning, TEXT("文件已加入下载: %s"), *FilePath);
-		ResultMap.Add(ImgData.Key, ImgData.Value);
+		ResultMap.Add(ImgData.Key, ImgData.Value.Url);
 	}
 
 	return ResultMap;

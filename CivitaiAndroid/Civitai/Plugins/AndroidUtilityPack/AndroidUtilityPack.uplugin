@@ -1,0 +1,42 @@
+{
+	"FileVersion": 3,
+	"Version": 3,
+	"VersionName": "1.0.2",
+	"FriendlyName": "Android Utility Pack",
+	"Description": "A collection of small core Android utility functionality exposed to Unreal Engine.",
+	"Category": "Android",
+	"CreatedBy": "Porret Gaming",
+	"CreatedByURL": "https://porret-gaming.github.io/",
+	"DocsURL": "https://porret-gaming.github.io/plugins/android-native/utility-pack/overview.html",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/e3344f2c9ea941f4a5d93ebe1ee4fb21",
+	"SupportURL": "https://porret-gaming.github.io/plugins/android-native/utility-pack/contact.html",
+	"EngineVersion": "5.5.0",
+	"CanContainContent": false,
+	"Installed": true,
+	"SupportedTargetPlatforms": [
+		"Win64",
+		"Mac",
+		"Android"
+	],
+	"Modules": [
+		{
+			"Name": "AndroidUtilityPack",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac",
+				"Android"
+			]
+		},
+		{
+			"Name": "AndroidUtilityPackEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac"
+			]
+		}
+	]
+}

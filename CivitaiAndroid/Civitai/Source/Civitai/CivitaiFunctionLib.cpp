@@ -3,7 +3,7 @@
 
 #include "CivitaiFunctionLib.h"
 #include "ImageUtils.h"
-
+#include "AndroidUtilityPackBPLibrary.h"
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
 #include "Android/AndroidJNI.h"
@@ -12,8 +12,8 @@
 bool UCivitaiFunctionLib::CreateFolder(const FString& InFolderName)
 {
 	// 获取基础路径
-	FString BasePath = FPaths::ProjectSavedDir();
-
+	FString BasePath = GetProjectSavedFolder();
+	
 	// 拼接完整路径
 	FString FullPath = BasePath / InFolderName;
 
@@ -115,8 +115,28 @@ void UCivitaiFunctionLib::OpenFolderBySystem(const FString& InFolderName)
 
 void UCivitaiFunctionLib::OpenFileBySystem(const FString& InFile)
 {
+#if PLATFORM_WINDOWS
 	// 使用系统默认应用程序打开文件
 	FPlatformProcess::LaunchURL(*InFile, nullptr, nullptr);
+#endif
+	
+#if PLATFORM_ANDROID
+	UAndroidUtilityPackBPLibrary::OpenSystemFolder(InFile);
+#endif
+}
+
+FString UCivitaiFunctionLib::GetProjectSavedFolder()
+{
+	FString outPath = FString();
+#if PLATFORM_WINDOWS
+	outPath = FPaths::ProjectSavedDir();
+#endif
+
+#if PLATFORM_ANDROID
+	outPath = UAndroidUtilityPackBPLibrary::GetAndroidExternalCardPath();
+#endif
+
+	return outPath;
 }
 
 void UCivitaiFunctionLib::ShowToast(const FString& msg)
@@ -128,5 +148,4 @@ void UCivitaiFunctionLib::ShowToast(const FString& msg)
 	}
 
 #endif
-	
 }

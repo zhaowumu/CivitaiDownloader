@@ -17,6 +17,16 @@
 			"TargetAllowList": [
 				"Editor"
 			]
+		},
+		{
+			"Name": "AndroidUtilityPack",
+			"Enabled": true,
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/e3344f2c9ea941f4a5d93ebe1ee4fb21",
+			"SupportedTargetPlatforms": [
+				"Win64",
+				"Mac",
+				"Android"
+			]
 		}
 	]
 }

@@ -44,6 +44,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "File")
 	static void OpenFileBySystem(const FString& InFile);
 
+	UFUNCTION(BlueprintPure, Category = "File")
+	static FString GetProjectSavedFolder();
+
 	UFUNCTION(BlueprintCallable, Category = "File")
 	static void ShowToast(const FString& msg);
 	
