@@ -9,16 +9,19 @@
 #include "AsyncTask_DownloadCivitai.generated.h"
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FDownloadImageDelegate, UTexture2D*, Texture, FString, ImagePath);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FDownloadImageDelegate,
+                                               UTexture2D*, Texture,
+                                               FString, ImageSavePath,
+                                               int32, Uid);
 
-UCLASS()
+UCLASS(BlueprintType, meta = (ExposedAsyncProxy = AsyncTask))
 class CIVITAI_API UAsyncTask_DownloadCivitai : public UBlueprintAsyncActionBase
 {
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable, meta=( BlueprintInternalUseOnly="true" ))
-	static UAsyncTask_DownloadCivitai* DownloadCivitai(FString InUserName, FString InURL,int32 InImageID);
+	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true"))
+	static UAsyncTask_DownloadCivitai* DownloadCivitai(FString InUserName, FString InURL, int32 InImageID);
 
 public:
 	UPROPERTY(BlueprintAssignable)

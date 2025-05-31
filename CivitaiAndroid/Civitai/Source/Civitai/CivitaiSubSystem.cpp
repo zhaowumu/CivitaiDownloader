@@ -31,37 +31,38 @@ void UCivitaiSubSystem::CreateUserFolder(const FString& InUserName)
 
 void UCivitaiSubSystem::GetUserDataList(TArray<FString>& InUserDataList)
 {
-	InUserDataList = UCivitaiFunctionLib::GetAllSubFolders(UCivitaiFunctionLib::GetProjectSavedFolder() / TEXT("CivitaiImageData"));
+	InUserDataList = UCivitaiFunctionLib::GetAllSubFolders(
+		UCivitaiFunctionLib::GetProjectSavedFolder() / TEXT("CivitaiImageData"));
 }
 
 void UCivitaiSubSystem::StartFetchJsonData(const FString& InUserName)
 {
-	if (!InUserName.IsEmpty())
+	if (!InUserName.IsEmpty() && !InUserName.IsNumeric())
 	{
-		// 如果是数字就代表是日期
-		if (InUserName.IsNumeric())
+		CurrentUser = InUserName;
+		//CurrentUserDataMap.Empty();
+		CurrentPageUrl.Empty();
+
+		FString BaseUrl = FString::Printf(
+			TEXT(
+				"https://civitai.com/api/v1/images?username=%s&limit=20&nsfw=X&period=AllTime&sort=Oldest&cursor=0|1500000000000"),
+			*CurrentUser);
+
+		// 构建本地JSON文件路径
+		FString FilePath = UCivitaiFunctionLib::GetProjectSavedFolder() / TEXT("CivitaiImageData") / CurrentUser /
+			TEXT("url.txt");
+
+		// 检查文件是否存在
+		if (FPaths::FileExists(FilePath))
 		{
-			/*CurrentUser = InUserName;
-			CurrentUserDataMap.Empty();
-			CurrentPageUrl.Empty();
-
-			FString BaseUrl = FString::Printf(
-				TEXT("https://civitai.com/api/v1/images?limit=100&nsfw=X&period=Day&sort=Newest"));
-
-			SendDataHttpRequest(BaseUrl);*/
+			// 读取文件内容
+			if (!FFileHelper::LoadFileToString(BaseUrl, *FilePath))
+			{
+				UE_LOG(LogTemp, Error, TEXT("读取本地文件失败: %s"), *FilePath);
+				return;
+			}
 		}
-		else
-		{
-			CurrentUser = InUserName;
-			CurrentUserDataMap.Empty();
-			CurrentPageUrl.Empty();
-
-			FString BaseUrl = FString::Printf(
-				TEXT("https://civitai.com/api/v1/images?username=%s&limit=100&nsfw=X&period=AllTime&sort=Newest"),
-				*CurrentUser);
-
-			SendDataHttpRequest(BaseUrl);
-		}
+		SendDataHttpRequest(BaseUrl);
 	}
 }
 
@@ -106,12 +107,15 @@ void UCivitaiSubSystem::HandleCivitaiDataResponse(FHttpRequestPtr Request, FHttp
 				FString ItemUrl = ItemObject->GetStringField(TEXT("url"));
 				FString ItemType = ItemObject->GetStringField(TEXT("type"));
 				FString ItemNsfwLevel = ItemObject->GetStringField(TEXT("nsfwLevel"));
+				FString ItemCreateTime = ItemObject->GetStringField(TEXT("createdAt"));
 
 				// 存入映射表
-				CurrentUserDataMap.Add(ItemId, FCivitaiDataInfo(ItemId, ItemUrl, ItemType, ItemNsfwLevel));
+				CurrentUserDataMap.Add(
+					ItemId, FCivitaiDataInfo(ItemId, ItemUrl, ItemType, ItemNsfwLevel, ItemCreateTime));
 			}
-			TSharedPtr<FJsonObject> MetaDataJsonObject = JsonObject->GetObjectField(TEXT("metadata"));
 
+
+			TSharedPtr<FJsonObject> MetaDataJsonObject = JsonObject->GetObjectField(TEXT("metadata"));
 			// 还有下一页
 			if (MetaDataJsonObject.IsValid())
 			{
@@ -149,6 +153,17 @@ void UCivitaiSubSystem::HandleCivitaiDataResponse(FHttpRequestPtr Request, FHttp
 	}
 }
 
+void UCivitaiSubSystem::RecordLastUrl()
+{
+	// 文件保存
+	FString FilePath = UCivitaiFunctionLib::GetProjectSavedFolder() / TEXT("CivitaiImageData") / CurrentUser /
+		TEXT("url.txt");
+	if (!FFileHelper::SaveStringToFile(CurrentPageUrl, *FilePath))
+	{
+		UE_LOG(LogTemp, Error, TEXT("URL文件保存失败: %s"), *FilePath);
+	}
+}
+
 bool UCivitaiSubSystem::SaveJsonData()
 {
 	TSharedPtr<FJsonObject> RootObject = MakeShareable(new FJsonObject());
@@ -163,6 +178,7 @@ bool UCivitaiSubSystem::SaveJsonData()
 		tmpJsonObj->SetStringField(TEXT("url"), ImgData.Value.Url);
 		tmpJsonObj->SetStringField(TEXT("type"), ImgData.Value.Type);
 		tmpJsonObj->SetStringField(TEXT("nsfwLevel"), ImgData.Value.NsfwLevel);
+		tmpJsonObj->SetStringField(TEXT("createdAt"), ImgData.Value.Time);
 		JsonArray.Add(MakeShareable(new FJsonValueObject(tmpJsonObj)));
 	}
 
@@ -174,8 +190,9 @@ bool UCivitaiSubSystem::SaveJsonData()
 	FJsonSerializer::Serialize(RootObject.ToSharedRef(), Writer);
 
 
-	// 文件保存增强
-	FString FilePath = UCivitaiFunctionLib::GetProjectSavedFolder() / TEXT("CivitaiImageData") / CurrentUser / TEXT("data.json");
+	// 文件保存
+	FString FilePath = UCivitaiFunctionLib::GetProjectSavedFolder() / TEXT("CivitaiImageData") / CurrentUser /
+		TEXT("data.json");
 	if (!FFileHelper::SaveStringToFile(OutputString, *FilePath))
 	{
 		UE_LOG(LogTemp, Error, TEXT("文件保存失败: %s"), *FilePath);
@@ -183,6 +200,8 @@ bool UCivitaiSubSystem::SaveJsonData()
 	}
 
 	CurrentJsonCount = CurrentUserDataMap.Num();
+
+	RecordLastUrl();
 
 	return true;
 }
@@ -199,7 +218,8 @@ void UCivitaiSubSystem::ShowUserLocalData(const FString& InUserName)
 	CurrentUserDataMap.Empty();
 
 	// 构建本地JSON文件路径
-	FString FilePath = UCivitaiFunctionLib::GetProjectSavedFolder() / TEXT("CivitaiImageData") / CurrentUser / TEXT("data.json");
+	FString FilePath = UCivitaiFunctionLib::GetProjectSavedFolder() / TEXT("CivitaiImageData") / CurrentUser /
+		TEXT("data.json");
 
 	// 检查文件是否存在
 	if (!FPaths::FileExists(FilePath))
@@ -236,9 +256,11 @@ void UCivitaiSubSystem::ShowUserLocalData(const FString& InUserName)
 				FString ItemUrl = ItemObject->GetStringField(TEXT("url"));
 				FString ItemType = ItemObject->GetStringField(TEXT("type"));
 				FString ItemNsfwLevel = ItemObject->GetStringField(TEXT("nsfwLevel"));
+				FString ItemCreateTime = ItemObject->GetStringField(TEXT("createdAt"));
 
 				// 存入映射表
-				CurrentUserDataMap.Add(ItemId, FCivitaiDataInfo(ItemId, ItemUrl, ItemType, ItemNsfwLevel));
+				CurrentUserDataMap.Add(
+					ItemId, FCivitaiDataInfo(ItemId, ItemUrl, ItemType, ItemNsfwLevel, ItemCreateTime));
 			}
 
 			CurrentJsonCount = CurrentUserDataMap.Num();
