@@ -40,28 +40,30 @@ void UCivitaiSubSystem::StartFetchJsonData(const FString& InUserName)
 	if (!InUserName.IsEmpty() && !InUserName.IsNumeric())
 	{
 		CurrentUser = InUserName;
-		//CurrentUserDataMap.Empty();
 		CurrentPageUrl.Empty();
 
+		// 预制最开始的URL
+		// "https://civitai.com/api/v1/images?username=%s&limit=20&nsfw=X&period=AllTime&sort=Oldest&cursor=0|1500000000000"
 		FString BaseUrl = FString::Printf(
 			TEXT(
-				"https://civitai.com/api/v1/images?username=%s&limit=20&nsfw=X&period=AllTime&sort=Oldest&cursor=0|1500000000000"),
+				"https://civitai.com/api/v1/images?username=%s&limit=20&period=AllTime&sort=Oldest&cursor=0|1500000000000"),
 			*CurrentUser);
 
-		// 构建本地JSON文件路径
+		// 本地JSON文件路径
 		FString FilePath = UCivitaiFunctionLib::GetProjectSavedFolder() / TEXT("CivitaiImageData") / CurrentUser /
 			TEXT("url.txt");
 
-		// 检查文件是否存在
+		// 检查文件是否存在，如果存在则读取文件内容作为URL
 		if (FPaths::FileExists(FilePath))
 		{
 			// 读取文件内容
 			if (!FFileHelper::LoadFileToString(BaseUrl, *FilePath))
 			{
-				UE_LOG(LogTemp, Error, TEXT("读取本地文件失败: %s"), *FilePath);
+				UE_LOG(LogTemp, Error, TEXT("读取本地url文件失败: %s"), *FilePath);
 				return;
 			}
 		}
+		// 发送请求
 		SendDataHttpRequest(BaseUrl);
 	}
 }
@@ -93,7 +95,7 @@ void UCivitaiSubSystem::HandleCivitaiDataResponse(FHttpRequestPtr Request, FHttp
 		TSharedPtr<FJsonObject> JsonObject;
 		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ResponseString);
 
-		// 解析JSON数据
+		// 将返回数据解析JSON数据
 		if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
 		{
 			// 遍历items数组
@@ -109,7 +111,7 @@ void UCivitaiSubSystem::HandleCivitaiDataResponse(FHttpRequestPtr Request, FHttp
 				FString ItemNsfwLevel = ItemObject->GetStringField(TEXT("nsfwLevel"));
 				FString ItemCreateTime = ItemObject->GetStringField(TEXT("createdAt"));
 
-				// 存入映射表
+				// 存入总映射表（不知道能不能抗住一两万条数据？）
 				CurrentUserDataMap.Add(
 					ItemId, FCivitaiDataInfo(ItemId, ItemUrl, ItemType, ItemNsfwLevel, ItemCreateTime));
 			}
@@ -123,24 +125,28 @@ void UCivitaiSubSystem::HandleCivitaiDataResponse(FHttpRequestPtr Request, FHttp
 				FString nextCursor = MetaDataJsonObject->GetStringField(TEXT("nextCursor"));
 				FString nextUrl = MetaDataJsonObject->GetStringField(TEXT("nextPage"));
 
+				// 如果还有下一页URL，继续递归请求
 				if (!nextUrl.IsEmpty())
 				{
 					SendDataHttpRequest(nextUrl);
 				}
 				else
 				{
+					// 结束同步
 					SyncDataOverDelegate.Broadcast(false, CurrentUserDataMap.Num());
 					UE_LOG(LogTemp, Error, TEXT("错误下一页"));
 				}
 			}
 			else
 			{
+				// 结束同步
 				SyncDataOverDelegate.Broadcast(true, CurrentUserDataMap.Num());
 				UE_LOG(LogTemp, Log, TEXT("成功解析 %d 条数据"), CurrentUserDataMap.Num());
 			}
 		}
 		else
 		{
+			// 结束同步
 			SyncDataOverDelegate.Broadcast(false, CurrentUserDataMap.Num());
 			UE_LOG(LogTemp, Error, TEXT("JSON解析失败"));
 		}
@@ -201,6 +207,7 @@ bool UCivitaiSubSystem::SaveJsonData()
 
 	CurrentJsonCount = CurrentUserDataMap.Num();
 
+	// 记录上一次请求的URL
 	RecordLastUrl();
 
 	return true;
@@ -293,13 +300,13 @@ FString UCivitaiSubSystem::GetCivitaiExternalStorageDir()
 	return FilePath;
 }
 
-TMap<int32, FString> UCivitaiSubSystem::GetDownLoadImageData()
+TArray<int32> UCivitaiSubSystem::GetNeedDownLoadImageData()
 {
-	TMap<int32, FString> ResultMap;
+	TArray<int32> ResultList;
 	if (CurrentUser.IsEmpty())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("当前用户未设置，无法下载图片"));
-		return ResultMap;
+		return ResultList;
 	}
 
 	// 构建目标文件夹路径
@@ -311,32 +318,40 @@ TMap<int32, FString> UCivitaiSubSystem::GetDownLoadImageData()
 		if (!FPlatformFileManager::Get().GetPlatformFile().CreateDirectoryTree(*TargetFolder))
 		{
 			UE_LOG(LogTemp, Error, TEXT("创建目标文件夹失败: %s"), *TargetFolder);
-			return ResultMap;
+			return ResultList;
 		}
 	}
 
 	if (CurrentUserDataMap.Num() == 0)
 	{
-		return ResultMap;
+		return ResultList;
 	}
 
+	// 遍历TMap并检查文件是否存在
 	for (const auto& ImgData : CurrentUserDataMap)
 	{
-		FString ext = FString::FromInt(ImgData.Key) + UBlueprintPathsLibrary::GetExtension(ImgData.Value.Url, true);
+		FString imageFileName = FString::FromInt(ImgData.Key) + UBlueprintPathsLibrary::GetExtension(
+			ImgData.Value.Url, true);
 
+		FString subFolder = ImgData.Value.NsfwLevel;
 
-		FString FilePath = FPaths::Combine(TargetFolder, ext);
+		if (subFolder.IsEmpty())
+		{
+			subFolder = "Normal";
+		}
+
+		FString FileFullPath = FPaths::Combine(TargetFolder, subFolder, imageFileName);
 
 		// 检查文件是否存在
-		if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*FilePath))
+		if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*FileFullPath))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("文件已存在，跳过下载: %s"), *FilePath);
+			UE_LOG(LogTemp, Log, TEXT("文件已存在，跳过下载: %s"), *FileFullPath);
 			continue;
 		}
 
-		UE_LOG(LogTemp, Warning, TEXT("文件已加入下载: %s"), *FilePath);
-		ResultMap.Add(ImgData.Key, ImgData.Value.Url);
+		UE_LOG(LogTemp, Log, TEXT("文件已加入下载: %s"), *FileFullPath);
+		ResultList.AddUnique(ImgData.Key);
 	}
 
-	return ResultMap;
+	return ResultList;
 }

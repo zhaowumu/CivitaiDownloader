@@ -44,6 +44,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "File")
 	static void OpenFileBySystem(const FString& InFile);
 
+	// 获取项目保存文件夹路径（支持PC和Android）。
 	UFUNCTION(BlueprintPure, Category = "File")
 	static FString GetProjectSavedFolder();
 

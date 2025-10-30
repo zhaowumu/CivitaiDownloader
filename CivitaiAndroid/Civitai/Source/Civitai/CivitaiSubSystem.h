@@ -102,5 +102,5 @@ public:
 	FString GetCivitaiExternalStorageDir();
 
 	UFUNCTION(BlueprintCallable, Category = "Civitai")
-	TMap<int32, FString> GetDownLoadImageData();
+	TArray<int32> GetNeedDownLoadImageData();
 };
