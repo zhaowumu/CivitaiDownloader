@@ -50,7 +50,7 @@ void UAsyncTask_DownloadCivitai::HandleImageRequest(FHttpRequestPtr HttpRequest,
 		SaveToData(ImageVideoData);
 	}else
 	{
-		OnFail.Broadcast(nullptr,TEXT("NullSavePath"), ImageID);
+		OnFail.Broadcast(false,TEXT("NullImageRequest"), ImageID);
 	}
 	
 	RemoveFromRoot();
@@ -90,12 +90,12 @@ void UAsyncTask_DownloadCivitai::SaveToData(const TArray<uint8>& InData)
 	if (FFileHelper::SaveArrayToFile(InData, *FilePath))
 	{
 		UE_LOG(LogTemp, Log, TEXT("成功保存图片: %s"), *FilePath);
-		UTexture2D* t = UKismetRenderingLibrary::ImportFileAsTexture2D(this, FilePath);
-		OnSuccess.Broadcast(t, FilePath, ImageID);
+		//UTexture2D* t = UKismetRenderingLibrary::ImportFileAsTexture2D(this, FilePath);
+		OnSuccess.Broadcast(true, FilePath, ImageID);
 	}
 	else
 	{
-		OnFail.Broadcast(nullptr,TEXT("SaveFail"), ImageID);
+		OnFail.Broadcast(false,TEXT("SaveFail"), ImageID);
 		UE_LOG(LogTemp, Error, TEXT("保存图片失败: %s"), *FilePath);
 	}
 }

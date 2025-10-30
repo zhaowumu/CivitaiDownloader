@@ -10,7 +10,7 @@
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FDownloadImageDelegate,
-                                               UTexture2D*, Texture,
+                                               bool, bSuccess,
                                                FString, ImageSavePath,
                                                int32, Uid);
 
@@ -25,7 +25,8 @@ class CIVITAI_API UAsyncTask_DownloadCivitai : public UBlueprintAsyncActionBase
 public:
 	/** 创建异步下载节点 */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true"))
-	static UAsyncTask_DownloadCivitai* DownloadCivitai(FString InUserName, int32 InImageID, FString InSubFolder,FString InURL);
+	static UAsyncTask_DownloadCivitai* DownloadCivitai(FString InUserName, int32 InImageID, FString InSubFolder,
+	                                                   FString InURL);
 
 public:
 	UPROPERTY(BlueprintAssignable)

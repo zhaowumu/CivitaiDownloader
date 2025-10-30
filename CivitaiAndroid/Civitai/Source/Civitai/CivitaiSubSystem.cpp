@@ -46,7 +46,7 @@ void UCivitaiSubSystem::StartFetchJsonData(const FString& InUserName)
 		// "https://civitai.com/api/v1/images?username=%s&limit=20&nsfw=X&period=AllTime&sort=Oldest&cursor=0|1500000000000"
 		FString BaseUrl = FString::Printf(
 			TEXT(
-				"https://civitai.com/api/v1/images?username=%s&limit=20&period=AllTime&sort=Oldest&cursor=0|1500000000000"),
+				"https://civitai.com/api/v1/images?username=%s&limit=20&nsfw=X&period=AllTime&sort=Oldest&cursor=0|1500000000000"),
 			*CurrentUser);
 
 		// 本地JSON文件路径

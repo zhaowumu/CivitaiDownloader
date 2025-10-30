@@ -13,7 +13,7 @@ bool UCivitaiFunctionLib::CreateFolder(const FString& InFolderName)
 {
 	// 获取基础路径
 	FString BasePath = GetProjectSavedFolder();
-	
+
 	// 拼接完整路径
 	FString FullPath = BasePath / InFolderName;
 
@@ -98,7 +98,38 @@ TArray<FString> UCivitaiFunctionLib::GetAllSubFiles(const FString& InFolderPath)
 		return SubFileNames;
 	}
 
-	PlatformFile.FindFiles(SubFileNames, *InFolderPath, TEXT(""));
+	// 2. 定义需要遍历的子文件夹名称
+	const TArray<FString> TargetSubFolders = {
+		TEXT("None"),
+		TEXT("Soft"),
+		TEXT("mature"),
+		TEXT("X")
+	};
+
+	// 3. 遍历目标子文件夹
+	for (const FString& SubFolder : TargetSubFolders)
+	{
+		// 构建完整的子文件夹路径
+		// FPaths::Combine 是一个安全且跨平台的路径连接方法，它会自动处理斜杠。
+		const FString FullSubFolderPath = FPaths::Combine(InFolderPath, SubFolder);
+
+		// 检查子文件夹是否存在
+		if (!PlatformFile.DirectoryExists(*FullSubFolderPath))
+		{
+			UE_LOG(LogTemp, Log, TEXT("Target sub-directory does not exist: %s"), *FullSubFolderPath);
+			// 简单跳过，继续查找下一个文件夹
+			continue;
+		}
+
+		// 创建一个临时数组来存放当前子文件夹找到的文件
+		TArray<FString> CurrentSubFiles;
+
+		// 调用 FindFiles 查找该子文件夹下的所有文件 (TEXT("") 表示所有扩展名)
+		PlatformFile.FindFiles(CurrentSubFiles, *FullSubFolderPath, TEXT(""));
+
+		// 将当前子文件夹找到的文件列表添加到总的结果数组中
+		SubFileNames.Append(CurrentSubFiles);
+	}
 
 	return SubFileNames;
 }
@@ -119,7 +150,7 @@ void UCivitaiFunctionLib::OpenFileBySystem(const FString& InFile)
 	// 使用系统默认应用程序打开文件
 	FPlatformProcess::LaunchURL(*InFile, nullptr, nullptr);
 #endif
-	
+
 #if PLATFORM_ANDROID
 	UAndroidUtilityPackBPLibrary::OpenSystemFolder(InFile);
 #endif
