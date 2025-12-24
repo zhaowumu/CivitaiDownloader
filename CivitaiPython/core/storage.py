@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from config import DATA_ROOT
 
@@ -38,7 +39,12 @@ def load_json(username):
     with open(path, "r", encoding="utf-8") as f:
         obj = json.load(f)
 
-    return {i["id"]: i for i in obj.get("images", [])}
+    # 兼容处理
+    images = obj.get("images", [])
+    if isinstance(images, dict):
+        return images
+
+    return {i["id"]: i for i in images}
 
 
 def load_cursor(username):
@@ -51,3 +57,26 @@ def load_cursor(username):
 def save_cursor(username, url):
     path = user_dir(username) / "cursor.txt"
     path.write_text(url or "", encoding="utf-8")
+
+
+def get_user_stats(username):
+    """
+    计算并返回 (JSON记录数, 本地实际文件数)
+    """
+    # 1. 获取 JSON 中的图片记录数量
+    data = load_json(username)
+    json_count = len(data)
+
+    # 2. 统计文件夹下实际存在的图片文件数量
+    path = user_dir(username)
+    file_count = 0
+    # 定义图片和视频后缀
+    valid_exts = {'.jpg', '.jpeg', '.png', '.webp', '.mp4', '.gif'}
+
+    # 递归查找所有文件
+    if path.exists():
+        for p in path.rglob("*"):
+            if p.is_file() and p.suffix.lower() in valid_exts:
+                file_count += 1
+
+    return json_count, file_count
