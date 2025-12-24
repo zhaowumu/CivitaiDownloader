@@ -20,16 +20,27 @@ class CivitaiSyncManager:
             start_url=start_url
         )
 
+        # 新拉到的数据
         remote = {i["id"]: i for i in remote_list}
+
+        # 旧的本地数据
         local = load_json(self.username)
-        need = get_need_download(self.username, remote)
+
+        # ===== 合并，保证不丢数据、不重复 =====
+        merged = dict(local)
+        merged.update(remote)
+
+        # 计算真正需要下载的
+        need = get_need_download(self.username, merged)
 
         if self.on_stats:
-            self.on_stats(len(remote), len(local), len(need))
+            self.on_stats(len(merged), len(local), len(need))
 
-        save_json(self.username, remote)
+        # 保存完整数据
+        save_json(self.username, merged)
         save_cursor(self.username, last_url)
 
+        # 下载缺失文件
         download_all(
             self.username,
             need,
