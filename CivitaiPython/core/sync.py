@@ -69,7 +69,11 @@ class CivitaiSyncManager:
 
         # 加载本地已有的图片数据
         merged = load_json(self.username)
-        print(f"[INFO] 加载已经存在json数据数量: {len(merged)}")
+
+        print(f"[同步] 加载已经存在json数据数量: {len(merged)}")
+
+        # 精简本地已有数据，仅保留后续需要的核心字段
+        merged = {k: self.json_extract_fields(v) for k, v in merged.items()}
 
         # 创建会话对象，优化网络请求性能
         session = requests.Session()
@@ -90,7 +94,7 @@ class CivitaiSyncManager:
                 f"&cursor=0|1500000000000"
             )
 
-        print(f"[INFO] 开始同步游标: {url}")
+        print(f"[同步] 开始同步游标: {url}")
 
         last_url = None
         total_images = len(merged)
@@ -105,12 +109,12 @@ class CivitaiSyncManager:
                 resp.raise_for_status()
 
             except Exception as e:
-                print(f"[ERROR] 获取json数据失败: {e}")
+                print(f"[同步] 获取json数据失败ERROR: {e}")
                 # 保存当前进度
                 save_cursor(self.username, url)
                 save_json(self.username, merged)
                 raise
-            
+
             # 解析JSON响应数据
             data = resp.json()
             # 获取当前页的图片列表
@@ -137,7 +141,7 @@ class CivitaiSyncManager:
             # 获取下一页的URL
             next_url = meta.get("nextPage")
             last_url = next_url
-            print(f"[FETCH] json next page {next_url}")
+            print(f"[同步] json next page {next_url}")
 
             # 如果没有下一页，退出循环
             if not next_url:
@@ -149,7 +153,7 @@ class CivitaiSyncManager:
             time.sleep(REQUEST_DELAY)
 
 
-        print(f"[INFO] 合并后的json数据数量: {len(merged)}")
+        print(f"[同步] 合并后的json数据数量: {len(merged)}")
         # 返回合并后的数据
         return merged
 
@@ -169,7 +173,7 @@ class CivitaiSyncManager:
         # 检查哪些图片需要下载（本地不存在的文件）
         need = get_need_download(self.username, merged)
 
-        print(f"[INFO] 需要下载的数据数量: {len(need)}")
+        print(f"[下载] 需要下载的数据数量: {len(need)}")
 
         # 如果提供了统计回调，发送统计信息
         if self.on_stats:

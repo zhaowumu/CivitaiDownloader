@@ -253,12 +253,17 @@ class MainWindow(QWidget):
         self.btn_download_all = QPushButton("一键下载所有缺失")
         self.btn_download_all.clicked.connect(self.batch_download)
 
+        # 一键同步按钮：串行执行每个用户的JSON同步和下载
+        self.btn_sync_all = QPushButton("一键同步")
+        self.btn_sync_all.clicked.connect(self.batch_sync_all)
+
         # 添加按钮到顶部布局
         top_layout.addWidget(self.btn_refresh_list)
         top_layout.addWidget(self.btn_fetch_follow)
         top_layout.addStretch()  # 添加弹性空间，将按钮分组
         top_layout.addWidget(self.btn_sync_all_json)
         top_layout.addWidget(self.btn_download_all)
+        top_layout.addWidget(self.btn_sync_all)
 
         layout.addLayout(top_layout)  # 将顶部布局添加到主布局
 
@@ -446,6 +451,24 @@ class MainWindow(QWidget):
         # 将每个用户的下载任务添加到队列
         for u in users:
             self.queue.append((u, "download"))
+        # 开始处理队列
+        self.process_queue()
+
+    def batch_sync_all(self):
+        """
+        一键同步：串行执行每个用户的JSON同步和下载
+        功能说明：
+        - 获取所有本地用户列表
+        - 对每个用户依次添加JSON同步和下载任务到队列
+        - 确保一个用户完成JSON同步后再开始下载，完成后才处理下一个用户
+        - 启动队列处理
+        """
+        # 获取所有本地用户
+        users = list_local_users()
+        # 对每个用户依次添加JSON同步和下载任务
+        for u in users:
+            self.queue.append((u, "json"))   # 先添加JSON同步任务
+            self.queue.append((u, "download"))  # 再添加下载任务
         # 开始处理队列
         self.process_queue()
 
