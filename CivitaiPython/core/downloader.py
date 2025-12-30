@@ -27,7 +27,11 @@ def _download_one(username, info):
 
     # 从URL中提取文件扩展名
     # 处理逻辑：先去掉URL参数(?)，再取最后一个点(.)后的部分
-    ext = url.split("?")[0].split(".")[-1]
+    # 提取扩展名，带兜底
+    ext = url.split("?")[0].rsplit(".", 1)[-1]
+    if "/" in ext:
+        ext = "jpg"
+
     # 构建存储目录路径：DATA_ROOT/username/NSFW级别
     folder = Path(DATA_ROOT) / username / sub
     # 确保目录存在，如果不存在则创建
@@ -35,22 +39,44 @@ def _download_one(username, info):
 
     # 构建完整的文件路径：DATA_ROOT/username/NSFW级别/图片ID.扩展名
     path = folder / f"{img_id}.{ext}"
+
+    tmp_path = path.with_suffix(path.suffix + ".part")
     # 如果文件已存在，跳过下载
     if path.exists():
-        return
+        return True
 
-    # 发送HTTP GET请求下载图片
-    r = requests.get(
-        url,
-        timeout=60,  # 设置60秒超时
-        headers={"User-Agent": "Mozilla/5.0"}  # 设置用户代理，模拟浏览器访问
-    )
-    # 检查响应状态码，如果不是200则抛出异常
-    r.raise_for_status()
+    try:
+        # 发送HTTP GET请求下载图片
+        with requests.get(
+            url,
+            timeout=60,
+            headers={"User-Agent": "Mozilla/5.0"},
+            stream=True,
+        ) as r:
+            r.raise_for_status()
 
-    # 将图片内容写入文件
-    with open(path, "wb") as f:
-        f.write(r.content)
+            with open(tmp_path, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+
+        # 下载完成后原子替换
+        tmp_path.replace(path)
+        return True
+
+    except requests.exceptions.RequestException as e:
+        # 网络 / HTTP 错误
+        print(f"[下载失败] {img_id}: {e}")
+
+    except Exception as e:
+        # 文件系统 / 权限 / 其他异常
+        print(f"[写入失败] {img_id}: {e}")
+
+    # 清理残留的临时文件
+    if tmp_path.exists():
+        tmp_path.unlink(missing_ok=True)
+
+    return False
 
 
 def download_all(username, need_list, progress_cb=None):
@@ -82,7 +108,12 @@ def download_all(username, need_list, progress_cb=None):
         ]
 
         # 遍历已完成的任务
-        for _ in as_completed(futures):
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception:
+                pass
+
             # 已完成数量加1
             done += 1
             # 如果提供了进度回调，发送当前进度
