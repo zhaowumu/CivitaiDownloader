@@ -38,6 +38,10 @@ class SyncWorker(QThread):
 
     # 新增: 同步 JSON 时的数量变化信号
     json_count_update = pyqtSignal(int)  # JSON同步进度信号，传递当前获取的记录数
+    # 新增: 同步 JSON 时的当前页面URL状态信号
+    current_page_update = pyqtSignal(str)  # 传递当前处理的页面URL
+    # 新增: 日志信号
+    log_msg = pyqtSignal(str)  # 传递日志消息
     data_updated = pyqtSignal()  # 数据更新完成信号
 
     def __init__(self, username, mode="all"):
@@ -76,12 +80,22 @@ class SyncWorker(QThread):
             def on_json_progress(count):
                 self.json_count_update.emit(count)
 
+            # 定义当前页面URL回调函数
+            def on_page_update(url):
+                self.current_page_update.emit(url)
+
+            # 定义日志回调函数
+            def on_log(msg):
+                self.log_msg.emit(msg)
+
             # 创建CivitaiSyncManager实例
             manager = CivitaiSyncManager(
                 self.username,
                 on_progress=on_progress,  # 进度回调
                 on_stats=on_stats,  # 统计回调
-                on_json_progress=on_json_progress  # JSON同步进度回调
+                on_json_progress=on_json_progress,  # JSON同步进度回调
+                on_page_update=on_page_update,  # 当前页面URL回调
+                on_log=on_log  # 日志回调
             )
 
             # 根据工作模式执行相应任务

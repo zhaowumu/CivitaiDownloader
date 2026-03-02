@@ -1,10 +1,11 @@
 import requests
+import time
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from config import DATA_ROOT, MAX_WORKERS
+from config import DATA_ROOT, MAX_WORKERS, REQUEST_DELAY
 
 
-def _download_one(username, info):
+def _download_one(username, info, max_retries=3):
     """
     下载单个图片到本地
     
@@ -13,10 +14,15 @@ def _download_one(username, info):
     - 自动创建存储目录（基于用户名和NSFW级别）
     - 跳过已存在的文件
     - 设置合理的超时时间和用户代理
+    - 支持自动重试机制，避免网络波动导致下载失败
     
     参数：
     username (str): 用户名，用于构建存储路径
     info (dict): 图片信息字典，包含url、id、nsfwLevel等字段
+    max_retries (int): 最大重试次数，默认3次
+    
+    返回：
+    bool: 下载是否成功
     """
     # 获取图片下载URL
     url = info["url"]
@@ -45,32 +51,49 @@ def _download_one(username, info):
     if path.exists():
         return True
 
-    try:
-        # 发送HTTP GET请求下载图片
-        with requests.get(
-            url,
-            timeout=60,
-            headers={"User-Agent": "Mozilla/5.0"},
-            stream=True,
-        ) as r:
-            r.raise_for_status()
+    # 重试循环
+    for attempt in range(max_retries):
+        try:
+            # 发送HTTP GET请求下载图片
+            with requests.get(
+                url,
+                timeout=60,
+                headers={"User-Agent": "Mozilla/5.0"},
+                stream=True,
+            ) as r:
+                r.raise_for_status()
 
-            with open(tmp_path, "wb") as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
+                with open(tmp_path, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
 
-        # 下载完成后原子替换
-        tmp_path.replace(path)
-        return True
+            # 下载完成后原子替换
+            tmp_path.replace(path)
+            return True
 
-    except requests.exceptions.RequestException as e:
-        # 网络 / HTTP 错误
-        print(f"[下载失败] {img_id}: {e}")
+        except requests.exceptions.ConnectionError as e:
+            # 连接错误，重试
+            if attempt < max_retries - 1:
+                wait_time = REQUEST_DELAY * (attempt + 1)  # 递增等待时间
+                print(f"[下载重试] {img_id} (尝试 {attempt + 1}/{max_retries}): {e}")
+                time.sleep(wait_time)
+            else:
+                print(f"[下载失败] {img_id}: 连接被远程主机关闭 - {e}")
 
-    except Exception as e:
-        # 文件系统 / 权限 / 其他异常
-        print(f"[写入失败] {img_id}: {e}")
+        except requests.exceptions.RequestException as e:
+            # 网络 / HTTP 错误
+            if attempt < max_retries - 1:
+                wait_time = REQUEST_DELAY * (attempt + 1)
+                print(f"[下载重试] {img_id} (尝试 {attempt + 1}/{max_retries}): {e}")
+                time.sleep(wait_time)
+            else:
+                print(f"[下载失败] {img_id}: {e}")
+
+        except Exception as e:
+            # 文件系统 / 权限 / 其他异常
+            print(f"[写入失败] {img_id}: {e}")
+            break
 
     # 清理残留的临时文件
     if tmp_path.exists():
@@ -110,12 +133,12 @@ def download_all(username, need_list, progress_cb=None):
         # 遍历已完成的任务
         for future in as_completed(futures):
             try:
-                future.result()
+                result = future.result()
+                if result:
+                    done += 1
             except Exception:
                 pass
 
-            # 已完成数量加1
-            done += 1
             # 如果提供了进度回调，发送当前进度
             if progress_cb:
                 progress_cb(done, total)

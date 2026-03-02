@@ -66,7 +66,8 @@ def get_all_following_usernames(username):
 
         # 3. 将请求负载转换为紧凑JSON字符串并进行URL编码
         input_str = json.dumps(payload, separators=(',', ':'))  # 使用紧凑格式减少字符数
-        encoded_input = urllib.parse.quote(input_str)  # URL编码，确保特殊字符正确传递
+        # 使用urlencode替代quote，避免过度编码
+        encoded_input = urllib.parse.urlencode({"input": input_str})
 
         # 4. 构造完整的请求URL
         # 添加batch=1参数标识这是一个批量请求

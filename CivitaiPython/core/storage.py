@@ -1,7 +1,38 @@
 import json
 import os
+import re
 from pathlib import Path
 from config import DATA_ROOT
+
+
+def validate_username(username):
+    """
+    验证用户名是否合法
+    
+    功能说明：
+    - 检查用户名是否为空
+    - 检查用户名长度
+    - 检查是否包含非法字符
+    
+    参数：
+    username (str): 用户名
+    
+    返回：
+    bool: 用户名是否合法
+    """
+    if not username or not isinstance(username, str):
+        return False
+    
+    # 检查长度
+    if len(username) < 1 or len(username) > 50:
+        return False
+    
+    # 检查是否包含非法字符（只允许字母、数字、下划线、连字符）
+    pattern = r'^[a-zA-Z0-9_-]+$'
+    if not re.match(pattern, username):
+        return False
+    
+    return True
 
 
 def user_dir(username):
@@ -12,13 +43,21 @@ def user_dir(username):
     - 根据用户名构建本地存储路径
     - 自动创建不存在的目录（包括父目录）
     - 如果目录已存在，不会抛出异常
+    - 包含输入验证
     
     参数：
     username (str): 用户名
     
     返回：
     Path: 用户存储目录的Path对象
+    
+    异常：
+    ValueError: 当用户名无效时抛出
     """
+    # 验证用户名
+    if not validate_username(username):
+        raise ValueError(f"无效的用户名: {username}")
+    
     # 构建用户目录路径：DATA_ROOT/username
     path = Path(DATA_ROOT) / username
     # 创建目录（如果不存在），parents=True表示创建所有必要的父目录

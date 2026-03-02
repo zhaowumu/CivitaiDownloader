@@ -36,7 +36,10 @@ def get_need_download(username, remote_data):
 
         # 从URL中提取文件扩展名
         # 处理逻辑：先去掉URL参数(?)，再取最后一个点(.)后的部分
-        ext = url.split("?")[0].split(".")[-1]
+        # 与downloader.py保持一致
+        ext = url.split("?")[0].rsplit(".", 1)[-1]
+        if "/" in ext:
+            ext = "jpg"
         # 构建完整的本地文件路径：DATA_ROOT/username/NSFW级别/图片ID.扩展名
         path = base / sub / f"{img_id}.{ext}"
 

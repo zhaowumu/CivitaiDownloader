@@ -194,6 +194,21 @@ class UserWidget(QFrame):
         """
         self.lbl_status.setText(f"正在获取: {count} 条记录...")
 
+    def update_cursor_url(self, url):
+        """
+        更新同步JSON时的当前页面URL显示
+        参数：
+        - url: 当前正在处理的页面URL
+        功能说明：
+        - 将当前页面URL显示在游标标签中
+        - 与refresh_stats复用相同的游标显示逻辑
+        """
+        try:
+            # 显示当前处理的URL
+            self.lbl_cursor.setText(f"游标: {url}")
+        except Exception:
+            pass
+
     def update_progress(self, done, total):
         """
         更新下载进度显示
@@ -293,6 +308,7 @@ class MainWindow(QWidget):
         self.workers = {}  # 存储当前运行的工作线程，键为用户名
         self.queue = []  # 任务队列，存储待处理的任务 (用户名, 模式)
         self.is_processing_queue = False  # 队列是否正在处理中
+        self.queue_lock = False  # 队列锁，防止并发修改
 
         self.load_user_list()  # 初始化时加载本地用户列表
 
@@ -365,13 +381,9 @@ class MainWindow(QWidget):
         try:
             # 获取当前用户关注的所有用户名
             names = get_all_following_usernames(MY_CIVITAI_NAME)
-            new_count = 0
             for n in names:
                 # user_dir函数内部会自动创建用户目录
-                path = user_dir(n)
-                # 简单判断是否是新创建的用户
-                # （如果之前没有data.json文件且没有子目录，可视为新用户）
-                # 这里为了简单直接根据names刷新列表
+                user_dir(n)
 
             # 刷新用户列表显示
             self.load_user_list()
@@ -521,6 +533,7 @@ class MainWindow(QWidget):
                 # 如果来自队列，标记队列未在处理并继续处理下一个任务
                 self.is_processing_queue = False
                 self.process_queue()
+            # 如果不是来自队列（用户手动点击），不启动新线程，直接返回
             return
 
         # 如果用户卡片存在，设置其为运行状态
@@ -531,12 +544,15 @@ class MainWindow(QWidget):
         worker = SyncWorker(username, mode)
         # 连接工作线程的日志信号到全局状态标签
         worker.log.connect(lambda msg: self.lbl_global_status.setText(f"[{username}] {msg}"))
+        # 连接工作线程的日志消息信号到全局状态标签
+        worker.log_msg.connect(lambda msg: self.lbl_global_status.setText(f"[{username}] {msg}"))
 
         # 如果用户卡片存在，连接工作线程的进度信号
         if username in self.user_widgets:
             w = self.user_widgets[username]
             worker.progress.connect(w.update_progress)  # 进度更新信号
             worker.json_count_update.connect(w.update_json_count)  # JSON数量更新信号
+            worker.current_page_update.connect(w.update_cursor_url)  # 当前页面URL更新信号
             worker.data_updated.connect(w.refresh_stats)  # 数据更新后刷新统计信号
 
         # 连接工作线程完成信号

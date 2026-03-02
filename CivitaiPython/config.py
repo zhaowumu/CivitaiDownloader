@@ -49,8 +49,21 @@ else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 确保 ini 文件是在 BASE_DIR 根目录下（而不是在 core 文件夹里）
-# 如果你的 config.py 在 core/ 下，你需要根据结构调整，这里假设 config.py 在根目录
-ini_path = os.path.join(BASE_DIR, 'config.ini')
+# 优先检查打包后的路径，然后是开发环境路径
+ini_paths = [
+    os.path.join(BASE_DIR, 'config.ini'),  # 打包后或开发环境根目录
+    os.path.join(BASE_DIR, '..', 'config.ini'),  # 开发环境可能的路径
+]
+
+ini_path = None
+for path in ini_paths:
+    if os.path.exists(path):
+        ini_path = path
+        break
+
+# 如果还是没找到，使用第一个路径（会自动创建）
+if ini_path is None:
+    ini_path = ini_paths[0]
 
 # 创建配置解析器实例
 config = configparser.ConfigParser()
