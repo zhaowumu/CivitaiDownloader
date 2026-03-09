@@ -119,3 +119,5 @@ class SyncWorker(QThread):
         except Exception:
             # 捕获并发送异常信息
             self.error.emit(traceback.format_exc())
+            # 发送任务完成信号，避免UI一直等待
+            self.finished.emit()

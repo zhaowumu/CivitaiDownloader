@@ -79,7 +79,7 @@ class CivitaiSyncManager:
             "createdAt": item.get("createdAt"),      # 若后续无需meta可再删减
         }
 
-    def sync_json(self, max_retries=3):
+    def sync_json(self, max_retries=3, timeout=300):
         """
         仅同步JSON数据
         
@@ -90,9 +90,11 @@ class CivitaiSyncManager:
         - 合并新旧数据，去重并保留最新信息
         - 保存合并后的数据和同步进度
         - 支持自动重试机制，避免网络波动导致获取失败
+        - 添加总超时限制，避免长时间卡住
         
         参数：
         max_retries (int): 最大重试次数，默认3次
+        timeout (int): 总超时时间（秒），默认300秒（5分钟）
         
         返回：
         dict: 合并后的图片数据字典
@@ -128,9 +130,18 @@ class CivitaiSyncManager:
 
             last_url = None
             total_images = len(merged)
+            start_time = time.time()  # 记录开始时间
 
             # 循环获取所有分页数据
             while url:
+                # 检查是否超时
+                elapsed = time.time() - start_time
+                if elapsed > timeout:
+                    self._log(f"[同步] 超时（{elapsed:.0f}秒），保存当前进度")
+                    save_cursor(self.username, url)
+                    save_json(self.username, merged)
+                    return merged
+
                 # 在请求之前先发送当前URL状态
                 if self.on_page_update:
                     self.on_page_update(url)
