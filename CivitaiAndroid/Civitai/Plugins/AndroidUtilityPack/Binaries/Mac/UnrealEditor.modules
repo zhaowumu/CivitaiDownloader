@@ -1,8 +1,0 @@
-{
-	"BuildId": "37670630",
-	"Modules": 
-	{
-		"AndroidUtilityPack": "UnrealEditor-AndroidUtilityPack.dylib",
-		"AndroidUtilityPackEditor": "UnrealEditor-AndroidUtilityPackEditor.dylib"
-	}
-}
